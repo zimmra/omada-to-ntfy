@@ -46,7 +46,8 @@ jobs:
       if: matrix.os == 'windows'
       shell: powershell
       run: |
-        $version = (git describe --tags 2>/dev/null) -or "build"
+        $version = try { git describe --tags 2>$null } catch { "build" }
+        if ([string]::IsNullOrEmpty($version)) { $version = "build" }
         $env:CGO_ENABLED = 0
         $env:GOOS = "windows"
         $env:GOARCH = "amd64"
