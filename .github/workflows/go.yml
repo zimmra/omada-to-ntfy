@@ -44,36 +44,33 @@ jobs:
 
     - name: Build [windows]
       if: matrix.os == 'windows'
+      shell: bash
       run: |
-        CGO_ENABLED=0 GOOS=$os GOARCH=amd64 go build -ldflags="-s -w -X 'main.version=$(git describe --tags 2>/dev/null || echo build)'" -trimpath -o omada-to-ntfy.exe main.go
-        zip -9q omada-to-ntfy-$os-amd64.zip omada-to-ntfy.exe LICENSE
+        CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X 'main.version=$(git describe --tags 2>/dev/null || echo build)'" -trimpath -o omada-to-ntfy.exe main.go
+        zip -9q omada-to-ntfy-windows-amd64.zip omada-to-ntfy.exe LICENSE
         rm omada-to-ntfy.exe
-        printf "sha256: %s\n" "$(shasum -a 256 omada-to-ntfy-$os-amd64.zip)"
-      env:
-        os: ${{ matrix.os }}
+        printf "sha256: %s\n" "$(shasum -a 256 omada-to-ntfy-windows-amd64.zip)"
 
     - name: Build [linux]
       id: build_linux
       if: matrix.os == 'linux'
+      shell: bash
       run: |
         echo "TAG=$(git describe --tags)" >> "$GITHUB_OUTPUT"
-        CGO_ENABLED=0 GOOS=$os GOARCH=amd64 go build -ldflags="-s -w -X 'main.version=$(git describe --tags 2>/dev/null || echo build)'" -trimpath -o omada-to-ntfy main.go
-        tar -I 'gzip -9' -cf omada-to-ntfy-$os-amd64.tar.gz omada-to-ntfy LICENSE
+        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X 'main.version=$(git describe --tags 2>/dev/null || echo build)'" -trimpath -o omada-to-ntfy main.go
+        tar -I 'gzip -9' -cf omada-to-ntfy-linux-amd64.tar.gz omada-to-ntfy LICENSE
         rm omada-to-ntfy
-        printf "sha256: %s\n" "$(shasum -a 256 omada-to-ntfy-$os-amd64.tar.gz)"
-      env:
-        os: ${{ matrix.os }}
+        printf "sha256: %s\n" "$(shasum -a 256 omada-to-ntfy-linux-amd64.tar.gz)"
 
     # The docker build is statically linked for a tiny image
     - name: Build [docker]
       if: matrix.os == 'linux'
+      shell: bash
       run: |
-        CGO_ENABLED=0 GOOS=$os GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w -X 'main.version=$(git describe --tags 2>/dev/null || echo build)'" -trimpath -o omada-to-ntfy main.go
+        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w -X 'main.version=$(git describe --tags 2>/dev/null || echo build)'" -trimpath -o omada-to-ntfy main.go
         tar -I 'gzip -9' -cf omada-to-ntfy-docker-amd64.tar.gz omada-to-ntfy Dockerfile
         rm omada-to-ntfy
         printf "sha256: %s\n" "$(shasum -a 256 omada-to-ntfy-docker-amd64.tar.gz)"
-      env:
-        os: ${{ matrix.os }}
 
     - name: Upload Release Assets [windows]
       uses: softprops/action-gh-release@v2
@@ -81,16 +78,15 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        files: omada-to-ntfy-${{ matrix.os }}-amd64.zip
+        files: omada-to-ntfy-windows-amd64.zip
 
     - name: Upload Release Assets [linux]
       uses: softprops/action-gh-release@v2
       if: github.ref_type == 'tag' && matrix.os == 'linux'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        os: ${{ matrix.os }}
       with:
-        files: omada-to-ntfy-${{ matrix.os }}-amd64.tar.gz        
+        files: omada-to-ntfy-linux-amd64.tar.gz        
 
     - name: Upload Release Assets [docker]
       uses: softprops/action-gh-release@v2
