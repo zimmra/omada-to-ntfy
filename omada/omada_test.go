@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/go-test/deep"
-	"github.com/leeft/omada-to-gotify/omada"
+	"github.com/zimmra/omada-to-ntfy/omada"
 )
 
 type omadaMessageMethodValues struct {

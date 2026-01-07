@@ -43,10 +43,10 @@ jobs:
     - name: Build [windows]
       if: matrix.os == 'windows'
       run: |
-        CGO_ENABLED=0 GOOS=$os GOARCH=amd64 go build -ldflags="-s -w -X 'main.version=$(git describe --tags 2>/dev/null || echo build)'" -trimpath -o omada-to-gotify.exe main.go
-        zip -9q omada-to-gotify-$os-amd64.zip omada-to-gotify.exe LICENSE
-        rm omada-to-gotify.exe
-        printf "sha256: %s\n" "$(shasum -a 256 omada-to-gotify-$os-amd64.zip)"
+        CGO_ENABLED=0 GOOS=$os GOARCH=amd64 go build -ldflags="-s -w -X 'main.version=$(git describe --tags 2>/dev/null || echo build)'" -trimpath -o omada-to-ntfy.exe main.go
+        zip -9q omada-to-ntfy-$os-amd64.zip omada-to-ntfy.exe LICENSE
+        rm omada-to-ntfy.exe
+        printf "sha256: %s\n" "$(shasum -a 256 omada-to-ntfy-$os-amd64.zip)"
       env:
         os: ${{ matrix.os }}
 
@@ -55,22 +55,21 @@ jobs:
       if: matrix.os == 'linux'
       run: |
         echo "TAG=$(git describe --tags)" >> "$GITHUB_OUTPUT"
-        CGO_ENABLED=0 GOOS=$os GOARCH=amd64 go build -ldflags="-s -w -X 'main.version=$(git describe --tags 2>/dev/null || echo build)'" -trimpath -o omada-to-gotify main.go
-        tar -I 'gzip -9' -cf omada-to-gotify-$os-amd64.tar.gz omada-to-gotify LICENSE
-        rm omada-to-gotify
-        printf "sha256: %s\n" "$(shasum -a 256 omada-to-gotify-$os-amd64.tar.gz)"
+        CGO_ENABLED=0 GOOS=$os GOARCH=amd64 go build -ldflags="-s -w -X 'main.version=$(git describe --tags 2>/dev/null || echo build)'" -trimpath -o omada-to-ntfy main.go
+        tar -I 'gzip -9' -cf omada-to-ntfy-$os-amd64.tar.gz omada-to-ntfy LICENSE
+        rm omada-to-ntfy
+        printf "sha256: %s\n" "$(shasum -a 256 omada-to-ntfy-$os-amd64.tar.gz)"
       env:
         os: ${{ matrix.os }}
 
-    # The docker build is statically linked for a tiny image, and needs ca-certificates.crt for SSL to work
-    # https://www.cloudbees.com/blog/building-minimal-docker-containers-for-go-applications
+    # The docker build is statically linked for a tiny image
     - name: Build [docker]
       if: matrix.os == 'linux'
       run: |
-        CGO_ENABLED=0 GOOS=$os GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w -X 'main.version=$(git describe --tags 2>/dev/null || echo build)'" -trimpath -o omada-to-gotify main.go
-        tar -I 'gzip -9' -cf omada-to-gotify-docker-amd64.tar.gz omada-to-gotify Dockerfile ca-certificates.crt
-        rm omada-to-gotify
-        printf "sha256: %s\n" "$(shasum -a 256 omada-to-gotify-docker-amd64.tar.gz)"
+        CGO_ENABLED=0 GOOS=$os GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w -X 'main.version=$(git describe --tags 2>/dev/null || echo build)'" -trimpath -o omada-to-ntfy main.go
+        tar -I 'gzip -9' -cf omada-to-ntfy-docker-amd64.tar.gz omada-to-ntfy Dockerfile
+        rm omada-to-ntfy
+        printf "sha256: %s\n" "$(shasum -a 256 omada-to-ntfy-docker-amd64.tar.gz)"
       env:
         os: ${{ matrix.os }}
 
@@ -80,7 +79,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        files: omada-to-gotify-${{ matrix.os }}-amd64.zip
+        files: omada-to-ntfy-${{ matrix.os }}-amd64.zip
 
     - name: Upload Release Assets [linux]
       uses: softprops/action-gh-release@v2
@@ -89,7 +88,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         os: ${{ matrix.os }}
       with:
-        files: omada-to-gotify-${{ matrix.os }}-amd64.tar.gz        
+        files: omada-to-ntfy-${{ matrix.os }}-amd64.tar.gz        
 
     - name: Upload Release Assets [docker]
       uses: softprops/action-gh-release@v2
@@ -97,7 +96,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        files: omada-to-gotify-docker-amd64.tar.gz        
+        files: omada-to-ntfy-docker-amd64.tar.gz        
 
     # Additional docker build steps for 'os=linux'
 
@@ -113,14 +112,14 @@ jobs:
       uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
       if: github.ref_type == 'tag' && matrix.os == 'linux'
       with:
-        images: shiari/omada-to-gotify
+        images: pzubuntu593/omada-to-ntfy
 
     - name: Build and push Docker image
       id: push
       uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
       if: github.ref_type == 'tag' && matrix.os == 'linux'
       with:
-        context: https://github.com/Leeft/omada-to-gotify/releases/download/${{ steps.build_linux.outputs.TAG }}/omada-to-gotify-docker-amd64.tar.gz
+        context: https://github.com/zimmra/omada-to-ntfy/releases/download/${{ steps.build_linux.outputs.TAG }}/omada-to-ntfy-docker-amd64.tar.gz
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
@@ -129,7 +128,7 @@ jobs:
       uses: actions/attest-build-provenance@v3
       if: github.ref_type == 'tag' && matrix.os == 'linux'
       with:
-        subject-name: index.docker.io/shiari/omada-to-gotify
+        subject-name: index.docker.io/pzubuntu593/omada-to-ntfy
         subject-digest: ${{ steps.push.outputs.digest }}
         push-to-registry: true
 

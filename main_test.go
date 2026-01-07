@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	main "github.com/leeft/omada-to-gotify"
+	main "github.com/zimmra/omada-to-ntfy"
 )
 
 func TestInitMain(t *testing.T) {
@@ -16,25 +16,25 @@ func TestInitMain(t *testing.T) {
 		logger = log.New(&buf, "logger: ", log.Lshortfile)
 	)
 
-	t.Run("GOTIFY_URL is required", func(t *testing.T) {
+	t.Run("NTFY_URL is required", func(t *testing.T) {
 		buf.Reset()
 		_, _, _, err := main.InitMain(logger)
-		if err.Error() != "GOTIFY_URL environment variable is required" {
-			logger.Fatalf("Failed test whether GOTIFY_URL is required; log is `%v`", buf.String())
+		if err.Error() != "NTFY_URL environment variable is required" {
+			logger.Fatalf("Failed test whether NTFY_URL is required; log is `%v`", buf.String())
 		}
 	})
 
-	os.Setenv("GOTIFY_URL", "http://foo:1337/")
+	os.Setenv("NTFY_URL", "https://ntfy.sh")
 
-	t.Run("GOTIFY_APP_TOKEN is required", func(t *testing.T) {
+	t.Run("NTFY_TOPIC is required", func(t *testing.T) {
 		buf.Reset()
 		_, _, _, err := main.InitMain(logger)
-		if err.Error() != "GOTIFY_APP_TOKEN environment variable is required" {
-			logger.Fatalf("Failed test whether GOTIFY_APP_TOKEN is required; log is `%v`", buf.String())
+		if err.Error() != "NTFY_TOPIC environment variable is required" {
+			logger.Fatalf("Failed test whether NTFY_TOPIC is required; log is `%v`", buf.String())
 		}
 	})
 
-	os.Setenv("GOTIFY_APP_TOKEN", "foo")
+	os.Setenv("NTFY_TOPIC", "my_omada_alerts")
 
 	t.Run("OMADA_SHARED_SECRET is required", func(t *testing.T) {
 		buf.Reset()
@@ -49,14 +49,18 @@ func TestInitMain(t *testing.T) {
 	t.Run("Can initialise after environment variables are set", func(t *testing.T) {
 		buf.Reset()
 
-		gotifyClient, server, port, err := main.InitMain(logger)
+		ntfyClient, server, port, err := main.InitMain(logger)
 
 		if err != nil {
 			logger.Fatalf("Still failed to initialize main; log is %v", buf.String())
 		}
 
-		if gotifyClient.GotifyURL != "http://foo:1337/" {
-			logger.Fatalf("Failed to initialize gotify client properly; GotifyURL is `%v`", gotifyClient.GotifyURL)
+		if ntfyClient.NtfyURL != "https://ntfy.sh" {
+			logger.Fatalf("Failed to initialize ntfy client properly; NtfyURL is `%v`", ntfyClient.NtfyURL)
+		}
+
+		if ntfyClient.Topic != "my_omada_alerts" {
+			logger.Fatalf("Failed to initialize ntfy client properly; Topic is `%v`", ntfyClient.Topic)
 		}
 
 		if port != "8080" {

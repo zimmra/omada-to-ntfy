@@ -1,5 +1,4 @@
 FROM scratch
-ADD ca-certificates.crt /etc/ssl/certs/
-ADD omada-to-gotify /
+ADD omada-to-ntfy /
 EXPOSE 8080
-CMD ["/omada-to-gotify"]
+CMD ["/omada-to-ntfy"]

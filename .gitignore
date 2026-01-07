@@ -1,6 +1,7 @@
 example*.json
 gotify.kra
-omada-to-gotify
+omada-to-ntfy
+omada-to-ntfy.exe
 *.swp
 *.swo
 gotest

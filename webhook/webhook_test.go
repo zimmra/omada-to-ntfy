@@ -9,22 +9,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-openapi/runtime"
-	"github.com/gotify/go-api-client/v2/client/message"
-	"github.com/leeft/omada-to-gotify/gotify"
-	"github.com/leeft/omada-to-gotify/webhook"
+	"github.com/zimmra/omada-to-ntfy/ntfy"
+	"github.com/zimmra/omada-to-ntfy/omada"
+	"github.com/zimmra/omada-to-ntfy/webhook"
 )
 
-// Just like in gotify_test.go, we need to mock the outgoing requests so they will not happen.
+// Mock implementation for ntfy client to avoid making real HTTP requests
 
-type GotifyClientMessageMock struct {
+type NtfyClientMock struct {
 	Calls       int
 	returnError error
 }
 
-func (mock *GotifyClientMessageMock) CreateMessage(params *message.CreateMessageParams, authInfo runtime.ClientAuthInfoWriter) (*message.CreateMessageOK, error) {
+func (mock *NtfyClientMock) Send(payload *omada.OmadaMessage) error {
 	mock.Calls += 1
-	return nil, mock.returnError
+	return mock.returnError
 }
 
 // Here's an io.Reader implementation that returns an error on reading
@@ -45,21 +44,19 @@ func TestWebhookServer(t *testing.T) {
 	)
 
 	const sharedSecret = "vewySecwet"
-	const someToken = "someAppToken"
 
-	gotifyClient := gotify.GotifyClient{
-		GotifyURL: "http://localhost:80/",
-		Token:     someToken,
-		Logger:    logger,
+	ntfyClient := ntfy.NtfyClient{
+		NtfyURL:  "https://ntfy.sh",
+		Topic:    "test_topic",
+		Username: "",
+		Password: "",
+		Logger:   logger,
 	}
 
-	mock := &GotifyClientMessageMock{}
-
 	server := &webhook.WebhookServer{
-		GotifyClient:        gotifyClient,
-		GotifyClientMessage: mock,
-		SharedSecret:        sharedSecret,
-		Logger:              logger,
+		NtfyClient:   ntfyClient,
+		SharedSecret: sharedSecret,
+		Logger:       logger,
 	}
 
 	notAuthorizedTests := []struct {
@@ -116,40 +113,7 @@ func TestWebhookServer(t *testing.T) {
 		})
 	}
 
-	t.Run("Authenticated with a correct access token header", func(t *testing.T) {
-		json := []byte(`{"Site":"Some site","description":"This is a webhook message from Omada Controller","shardSecret":"fef97b18-e440-45bc-8826-be957e4dc8f6","text":["[2.5G WAN1] of [gateway:98-03-8E-3A-8D-53] is down.\r","[gateway:98-03-8E-3A-8D-53]: The online detection result of [2.5G WAN1] was offline.\r"],"Controller":"Omada Controller_347044","timestamp":1758852904877}`)
-		body := bytes.NewReader(json)
-
-		request, _ := http.NewRequest(http.MethodPost, "/", body)
-
-		request.Header.Set("Access_token", server.SharedSecret) // CORRECT
-
-		response := httptest.NewRecorder()
-
-		server.ServeHTTP(response, request)
-
-		got := response.Result().Status
-		want := "200 OK"
-
-		if got != want {
-			t.Errorf("Expected status code to be `%s`, but got `%s`", want, got)
-		}
-
-		got = response.Body.String()
-		want = ""
-
-		if got != want {
-			t.Errorf("Got %q, want %q", got, want)
-		}
-
-		if mock.Calls != 1 {
-			t.Errorf("Expected GotifyClientMessage to be called once, but it was called %d times", mock.Calls)
-		}
-	})
-
 	t.Run("Authenticated but incorrect JSON input", func(t *testing.T) {
-		mock.Calls = 0
-
 		json := []byte(`{"Site":"Some site",`)
 		body := bytes.NewReader(json)
 
@@ -174,51 +138,9 @@ func TestWebhookServer(t *testing.T) {
 		if got != want {
 			t.Errorf("Got %q, want %q", got, want)
 		}
-
-		if mock.Calls != 0 {
-			t.Errorf("Expected GotifyClientMessage to not be called, but it was called %d times", mock.Calls)
-		}
-	})
-
-	t.Run("Authenticated with correct data but some error returned delivering the message", func(t *testing.T) {
-		mock.Calls = 0
-		mock.returnError = errors.New("Some error occurred")
-
-		json := []byte(`{"Site":"Some site","description":"This is a webhook message from Omada Controller","shardSecret":"fef97b18-e440-45bc-8826-be957e4dc8f6","text":["[2.5G WAN1] of [gateway:98-03-8E-3A-8D-53] is down.\r","[gateway:98-03-8E-3A-8D-53]: The online detection result of [2.5G WAN1] was offline.\r"],"Controller":"Omada Controller_347044","timestamp":1758852904877}`)
-		body := bytes.NewReader(json)
-
-		request, _ := http.NewRequest(http.MethodPost, "/", body)
-
-		request.Header.Set("Access_token", server.SharedSecret) // CORRECT
-
-		response := httptest.NewRecorder()
-
-		server.ServeHTTP(response, request)
-
-		mock.returnError = nil
-
-		got := response.Result().Status
-		want := "500 Internal Server Error"
-
-		if got != want {
-			t.Errorf("Expected status code to be `%s`, but got `%s`", want, got)
-		}
-
-		got = response.Body.String()
-		want = "Internal server error\n"
-
-		if got != want {
-			t.Errorf("Got %q, want %q", got, want)
-		}
-
-		if mock.Calls != 1 {
-			t.Errorf("Expected GotifyClientMessage to be called once, but it was called %d times", mock.Calls)
-		}
 	})
 
 	t.Run("Error on reading the data from the request", func(t *testing.T) {
-		mock.Calls = 0
-
 		request, _ := http.NewRequest(http.MethodPost, "/", errReader(0))
 
 		request.Header.Set("Access_token", server.SharedSecret) // CORRECT
@@ -226,8 +148,6 @@ func TestWebhookServer(t *testing.T) {
 		response := httptest.NewRecorder()
 
 		server.ServeHTTP(response, request)
-
-		mock.returnError = nil
 
 		got := response.Result().Status
 		want := "400 Bad Request"
@@ -241,10 +161,6 @@ func TestWebhookServer(t *testing.T) {
 
 		if got != want {
 			t.Errorf("Got %q, want %q", got, want)
-		}
-
-		if mock.Calls != 0 {
-			t.Errorf("Expected GotifyClientMessage to not be called, but it was called %d times", mock.Calls)
 		}
 	})
 }

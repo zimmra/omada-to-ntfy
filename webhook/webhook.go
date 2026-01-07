@@ -6,15 +6,14 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/leeft/omada-to-gotify/gotify"
-	"github.com/leeft/omada-to-gotify/omada"
+	"github.com/zimmra/omada-to-ntfy/ntfy"
+	"github.com/zimmra/omada-to-ntfy/omada"
 )
 
 type WebhookServer struct {
-	GotifyClient        gotify.GotifyClient
-	GotifyClientMessage gotify.GotifyClientMessage
-	SharedSecret        string
-	Logger              *log.Logger
+	NtfyClient   ntfy.NtfyClient
+	SharedSecret string
+	Logger       *log.Logger
 }
 
 func (ws *WebhookServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -39,16 +38,11 @@ func (ws *WebhookServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// This code sets up a new client as per the example of the gotify supplied go client;
-	// it does so every time it forwards a webhook. I'm new to Go and new to how the
-	// lifetime of these variables affects network connections, I can't find a "Close"
-	// method for it plus it would seem the notifications are sent sporadically anyway
-	// so this should be okay.
-
-	err = ws.GotifyClient.Send(ws.GotifyClientMessage, omadaMessage)
+	// Send the message to ntfy
+	err = ws.NtfyClient.Send(omadaMessage)
 
 	if err != nil {
-		ws.Logger.Printf("Error sending message to Gotify: %v", err)
+		ws.Logger.Printf("Error sending message to ntfy: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
