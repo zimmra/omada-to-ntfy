@@ -20,6 +20,8 @@ jobs:
     runs-on: ${{ matrix.os == 'linux' && 'ubuntu-latest' || 'windows-latest' }}
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     strategy:
       matrix:
         os: [linux, windows]
