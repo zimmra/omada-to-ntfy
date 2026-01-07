@@ -44,12 +44,17 @@ jobs:
 
     - name: Build [windows]
       if: matrix.os == 'windows'
-      shell: bash
+      shell: powershell
       run: |
-        CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X 'main.version=$(git describe --tags 2>/dev/null || echo build)'" -trimpath -o omada-to-ntfy.exe main.go
-        zip -9q omada-to-ntfy-windows-amd64.zip omada-to-ntfy.exe LICENSE
-        rm omada-to-ntfy.exe
-        printf "sha256: %s\n" "$(shasum -a 256 omada-to-ntfy-windows-amd64.zip)"
+        $version = (git describe --tags 2>/dev/null) -or "build"
+        $env:CGO_ENABLED = 0
+        $env:GOOS = "windows"
+        $env:GOARCH = "amd64"
+        go build -ldflags="-s -w -X 'main.version=$version'" -trimpath -o omada-to-ntfy.exe main.go
+        Compress-Archive -Path omada-to-ntfy.exe, LICENSE -DestinationPath omada-to-ntfy-windows-amd64.zip -Force
+        $hash = (Get-FileHash -Path omada-to-ntfy-windows-amd64.zip -Algorithm SHA256).Hash
+        Write-Host "sha256: $hash"
+        Remove-Item -Path omada-to-ntfy.exe
 
     - name: Build [linux]
       id: build_linux
